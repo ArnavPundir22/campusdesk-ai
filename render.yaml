@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: campusdesk-ai
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: DEFAULT_AI_PROVIDER
+        value: gemini
+      - key: AI_MODEL_NAME
+        value: gemini-2.5-flash
+      - key: SENDER_EMAIL
+        value: onboarding@resend.dev
+      - key: MOCK_NOTION
+        value: "false"
+      - key: MOCK_EMAIL
+        value: "false"
+      - key: AUTO_APPROVE_BUDGET_MAX_INR
+        value: "1000.0"
+      - key: AUTO_APPROVE_LEAVE_MAX_DAYS
+        value: "1"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: NOTION_API_KEY
+        sync: false
+      - key: NOTION_REQUESTS_DB_ID
+        sync: false
+      - key: NOTION_RUN_LOG_DB_ID
+        sync: false
+      - key: NOTION_RULEBOOK_DB_ID
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
