@@ -6,7 +6,7 @@ Follow this guide to connect any Google Form to your live **CampusDesk AI** back
 
 ## 📋 Step 1: Create Your Google Form
 
-Create a new Google Form with these 5 fields (in exact order):
+Create a new Google Form with these 5 fields (any order):
 
 1. **Student Full Name** *(Short answer)*
 2. **Student Roll / ID Number** *(Short answer)*
@@ -20,35 +20,60 @@ Create a new Google Form with these 5 fields (in exact order):
 
 1. Open your Google Form.
 2. Click the **`⋮` (Three dots)** icon in the top-right corner $\rightarrow$ Click **Script editor** (or **Apps Script**).
-3. Delete any default code in `Code.gs` and paste the following snippet:
+3. Delete any default code in `Code.gs` and paste the following dynamic field-matching snippet:
 
 ```javascript
+function setupTrigger() {
+  var form = FormApp.getActiveForm();
+  ScriptApp.newTrigger('onFormSubmit')
+      .forForm(form)
+      .onFormSubmit()
+      .create();
+  Logger.log("✅ Trigger created successfully!");
+}
+
 function onFormSubmit(e) {
-  // REPLACE WITH YOUR CAMPUSDESK AI SERVER URL
-  // For local testing via ngrok: "https://xxxx.ngrok-free.app/api/v1/requests/submit"
-  // For production: "https://your-domain.com/api/v1/requests/submit"
-  var BACKEND_URL = "https://YOUR_SERVER_URL/api/v1/requests/submit";
+  var BACKEND_URL = "https://campusdesk-ai-test.loca.lt/api/v1/requests/submit";
 
   var itemResponses = e.response.getItemResponses();
-
   var payload = {
-    "student_name": itemResponses[0] ? itemResponses[0].getResponse() : "",
-    "student_id": itemResponses[1] ? itemResponses[1].getResponse() : "",
-    "contact_email": itemResponses[2] ? itemResponses[2].getResponse() : "",
-    "department": itemResponses[3] ? itemResponses[3].getResponse() : "",
-    "raw_text": itemResponses[4] ? itemResponses[4].getResponse() : ""
+    "student_name": "",
+    "student_id": "",
+    "contact_email": "",
+    "department": "",
+    "raw_text": ""
   };
+
+  for (var i = 0; i < itemResponses.length; i++) {
+    var title = itemResponses[i].getItem().getTitle().toLowerCase();
+    var response = itemResponses[i].getResponse();
+
+    if (title.indexOf("name") !== -1) {
+      payload["student_name"] = response;
+    } else if (title.indexOf("roll") !== -1 || title.indexOf("id") !== -1) {
+      payload["student_id"] = response;
+    } else if (title.indexOf("email") !== -1) {
+      payload["contact_email"] = response;
+    } else if (title.indexOf("department") !== -1) {
+      payload["department"] = response;
+    } else if (title.indexOf("detail") !== -1 || title.indexOf("request") !== -1 || title.indexOf("reason") !== -1) {
+      payload["raw_text"] = response;
+    }
+  }
 
   var options = {
     "method": "post",
     "contentType": "application/json",
+    "headers": {
+      "Bypass-Tunnel-Remainder": "true"
+    },
     "payload": JSON.stringify(payload),
     "muteHttpExceptions": true
   };
 
   try {
-    var response = UrlFetchApp.fetch(BACKEND_URL, options);
-    Logger.log("CampusDesk AI Response: " + response.getContentText());
+    var res = UrlFetchApp.fetch(BACKEND_URL, options);
+    Logger.log("CampusDesk AI Response: " + res.getContentText());
   } catch (err) {
     Logger.log("Error dispatching to CampusDesk AI: " + err.toString());
   }
@@ -57,15 +82,10 @@ function onFormSubmit(e) {
 
 ---
 
-## ⏰ Step 3: Enable the "On Form Submit" Trigger
+## ⏰ Step 3: Enable Trigger
 
-1. In the Apps Script left sidebar, click **Triggers** 🕒 *(alarm clock icon)*.
-2. Click **+ Add Trigger** (bottom-right).
-3. Configure trigger options:
-   - **Choose which function to run:** `onFormSubmit`
-   - **Select event source:** `From form`
-   - **Select event type:** `On form submit`
-4. Click **Save** and grant permissions.
+1. Select **`setupTrigger`** from the top dropdown menu $\rightarrow$ Click **▶ Run**.
+2. Click **Review permissions** $\rightarrow$ **Allow**.
 
 ---
 
