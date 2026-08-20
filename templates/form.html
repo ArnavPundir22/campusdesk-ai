@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusDesk AI — Student Request Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success-bg: rgba(34, 197, 94, 0.15);
+            --success-border: rgba(34, 197, 94, 0.4);
+            --success-text: #4ade80;
+            --warning-bg: rgba(234, 179, 8, 0.15);
+            --warning-border: rgba(234, 179, 8, 0.4);
+            --warning-text: #fde047;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 680px;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 40px 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            font-size: 13px;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: 9999px;
+            margin-bottom: 12px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #cbd5e1;
+            margin-bottom: 8px;
+        }
+
+        label span.required {
+            color: #f43f5e;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 540px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        input[type="text"],
+        input[type="email"],
+        select,
+        textarea {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: var(--text-main);
+            font-size: 15px;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        textarea {
+            min-height: 130px;
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        button.btn-submit {
+            width: 100%;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+            box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
+        }
+
+        button.btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px -5px rgba(99, 102, 241, 0.5);
+        }
+
+        button.btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Result Alert Container */
+        .result-box {
+            margin-top: 24px;
+            padding: 20px;
+            border-radius: 12px;
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-box.AUTO_APPROVED {
+            background: var(--success-bg);
+            border: 1px solid var(--success-border);
+            color: var(--success-text);
+        }
+
+        .result-box.PENDING_APPROVAL {
+            background: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            color: var(--warning-text);
+        }
+
+        .result-header {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .result-msg {
+            font-size: 14px;
+            line-height: 1.5;
+            color: #e2e8f0;
+            margin-bottom: 12px;
+        }
+
+        .result-link {
+            display: inline-block;
+            color: #818cf8;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 13px;
+            border-bottom: 1px dashed #818cf8;
+        }
+
+        .result-link:hover {
+            color: #a5b4fc;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s ease-in-out infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <div class="badge">🎓 CampusDesk AI Portal</div>
+            <h1>Student Request Submission</h1>
+            <p>Submit leave applications, budget reimbursements, or lab equipment requests. AI parses details instantly and routes for approval.</p>
+        </div>
+
+        <form id="requestForm">
+            <div class="grid-2">
+                <div class="form-group">
+                    <label for="student_name">Full Name <span class="required">*</span></label>
+                    <input type="text" id="student_name" required placeholder="e.g. Aarav Sharma">
+                </div>
+                <div class="form-group">
+                    <label for="student_id">Roll / Student ID</label>
+                    <input type="text" id="student_id" placeholder="e.g. 2023-CS-042">
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label for="contact_email">Email Address <span class="required">*</span></label>
+                    <input type="email" id="contact_email" required placeholder="student@university.edu.in">
+                </div>
+                <div class="form-group">
+                    <label for="department">Department</label>
+                    <select id="department">
+                        <option value="Computer Science">Computer Science</option>
+                        <option value="Electronics & Communication">Electronics & Communication</option>
+                        <option value="Mechanical Engineering">Mechanical Engineering</option>
+                        <option value="Civil Engineering">Civil Engineering</option>
+                        <option value="Business Administration">Business Administration</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="raw_text">Request Details & Reason <span class="required">*</span></label>
+                <textarea id="raw_text" required placeholder="Describe your request in plain English or Hinglish (e.g., 'Sir, requesting emergency leave for 2 days due to medical checkup' or 'Requesting reimbursement of Rs 1,450 for robotics competition sensors')."></textarea>
+                <div class="hint">💡 AI automatically extracts categories, dollar amounts, leave days, and urgency levels.</div>
+            </div>
+
+            <button type="submit" class="btn-submit" id="submitBtn">
+                <span class="spinner" id="spinner"></span>
+                <span id="btnText">Submit Request to Engine</span>
+            </button>
+        </form>
+
+        <div id="resultBox" class="result-box">
+            <div id="resultHeader" class="result-header"></div>
+            <div id="resultMsg" class="result-msg"></div>
+            <a id="resultLink" class="result-link" target="_blank" rel="noopener">View Formatted Card in Notion Workspace →</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('requestForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const spinner = document.getElementById('spinner');
+            const btnText = document.getElementById('btnText');
+            const resultBox = document.getElementById('resultBox');
+
+            // Set loading state
+            submitBtn.disabled = true;
+            spinner.style.display = 'block';
+            btnText.innerText = 'AI Parsing & Evaluating...';
+            resultBox.style.display = 'none';
+
+            const payload = {
+                student_name: document.getElementById('student_name').value.trim(),
+                student_id: document.getElementById('student_id').value.trim(),
+                contact_email: document.getElementById('contact_email').value.trim(),
+                department: document.getElementById('department').value,
+                raw_text: document.getElementById('raw_text').value.trim()
+            };
+
+            try {
+                const response = await fetch('/api/v1/requests/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                
+                resultBox.className = 'result-box ' + data.workflow_status;
+                
+                if (data.workflow_status === 'AUTO_APPROVED') {
+                    document.getElementById('resultHeader').innerHTML = '✅ Request Auto-Approved! [' + data.request_id + ']';
+                } else {
+                    document.getElementById('resultHeader').innerHTML = '⏳ Paused at Notion Approval Gate [' + data.request_id + ']';
+                }
+
+                document.getElementById('resultMsg').innerText = data.message;
+                
+                if (data.notion_url) {
+                    const link = document.getElementById('resultLink');
+                    link.href = data.notion_url;
+                    link.style.display = 'inline-block';
+                } else {
+                    document.getElementById('resultLink').style.display = 'none';
+                }
+
+                resultBox.style.display = 'block';
+
+            } catch (err) {
+                alert('Error submitting request: ' + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                spinner.style.display = 'none';
+                btnText.innerText = 'Submit Another Request';
+            }
+        });
+    </script>
+</body>
+</html>

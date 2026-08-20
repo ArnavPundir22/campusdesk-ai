@@ -1,6 +1,8 @@
+import os
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
 from src.ingestion.router import router as ingestion_router
@@ -48,6 +50,14 @@ app.add_middleware(
 
 # Include Routers
 app.include_router(ingestion_router)
+
+
+@app.get("/", include_in_schema=False)
+@app.get("/form", include_in_schema=False)
+async def serve_student_form():
+    """Serve built-in visual student request web portal."""
+    template_path = os.path.join(os.path.dirname(__file__), "..", "templates", "form.html")
+    return FileResponse(template_path)
 
 
 @app.get("/health", tags=["Health & Status"])
