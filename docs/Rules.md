@@ -82,3 +82,20 @@ IF Category IN ["LAB_EQUIPMENT", "EVENT_HALL"]:
     Decision = REQUIRES_HUMAN_APPROVAL
     Reason = "Physical resource dispatch requires staff verification"
 ```
+
+---
+
+## 4. Live Dynamic Notion Rulebook Integration
+
+In addition to static Python rules, **CampusDesk AI** dynamically fetches rule configuration overrides from the **Notion Rulebook Database** (`3c282ead-0f2a-812c-9bc8-f4c9f07339f3`) with 60s TTL caching:
+
+| Rule ID | Category | Auto Approve Enabled | Max Auto Budget (INR) | Max Auto Leave Days |
+|---|---|---|---|---|
+| **`R2_BUDGET_THRESHOLD`** | `BUDGET` | `[x]` | **`₹1,000`** | `0` |
+| **`R3_LEAVE_THRESHOLD`** | `LEAVE` | `[x]` | `0` | **`1 Day`** |
+| **`R4_RESOURCE_GATE`** | `LAB_EQUIPMENT` | `[ ]` | `0` | `0` |
+| **`R5_EVENT_GATE`** | `EVENT_HALL` | `[ ]` | `0` | `0` |
+| **`R6_GENERAL_GATE`** | `GENERAL` | `[ ]` | `0` | `0` |
+
+*Administrators can update these values directly inside Notion without modifying or restarting the backend server.*
+
