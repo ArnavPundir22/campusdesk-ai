@@ -81,7 +81,7 @@ Rules:
                     pass
 
         # 2. Extract Leave Durations
-        day_matches = re.findall(r'(\d+)\s*(?:day|days)\b', text_lower)
+        day_matches = re.findall(r'(\d+)\s*(?:day|days|din)\b', text_lower)
         if day_matches:
             try:
                 duration_days = int(day_matches[0])
@@ -89,7 +89,7 @@ Rules:
                     category = RequestCategory.LEAVE
             except ValueError:
                 pass
-        elif any(k in text_lower for k in ["leave", "absent", "fever", "sick", "vacation", "permission to absent"]):
+        elif any(k in text_lower for k in ["leave", "absent", "chutti", "fever", "sick", "vacation", "permission to absent"]):
             if category == RequestCategory.GENERAL:
                 category = RequestCategory.LEAVE
 

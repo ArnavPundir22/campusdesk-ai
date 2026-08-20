@@ -76,7 +76,7 @@ class NotionFormatter:
                     "color": "gray_background",
                     "rich_text": [
                         {"type": "text", "text": {"content": "EXECUTIVE SUMMARY\n"}, "annotations": {"bold": True}},
-                        {"type": "text", "text": {"content": request.summary}}
+                        {"type": "text", "text": {"content": request.summary[:1950]}}
                     ]
                 }
             },
@@ -90,7 +90,7 @@ class NotionFormatter:
                         {
                             "object": "block",
                             "type": "bulleted_list_item",
-                            "bulleted_list_item": {"rich_text": [{"type": "text", "text": {"content": f"Rule Evaluated: {request.decision_reason}"}}]}
+                            "bulleted_list_item": {"rich_text": [{"type": "text", "text": {"content": f"Rule Evaluated: {request.decision_reason[:1900]}"}}]}
                         },
                         {
                             "object": "block",
@@ -129,7 +129,7 @@ class NotionFormatter:
             "quote": {
                 "rich_text": [
                     {"type": "text", "text": {"content": "Original Student Submission:\n"}, "annotations": {"italic": True}},
-                    {"type": "text", "text": {"content": request.raw_text}}
+                    {"type": "text", "text": {"content": request.raw_text[:1950]}}
                 ]
             }
         })
