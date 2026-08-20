@@ -1,6 +1,6 @@
 # Google Forms Integration Guide — CampusDesk AI
 
-Follow this guide to connect any Google Form to your live **CampusDesk AI** backend engine in 3 minutes.
+Follow this guide to connect any Google Form to your live **CampusDesk AI** backend engine in 2 minutes.
 
 ---
 
@@ -33,7 +33,7 @@ function setupTrigger() {
 }
 
 function onFormSubmit(e) {
-  var BACKEND_URL = "https://campusdesk-ai-test.loca.lt/api/v1/requests/submit";
+  var BACKEND_URL = "https://campusdesk-ai.onrender.com/api/v1/requests/submit";
 
   var itemResponses = e.response.getItemResponses();
   var payload = {
@@ -64,9 +64,6 @@ function onFormSubmit(e) {
   var options = {
     "method": "post",
     "contentType": "application/json",
-    "headers": {
-      "Bypass-Tunnel-Remainder": "true"
-    },
     "payload": JSON.stringify(payload),
     "muteHttpExceptions": true
   };
@@ -91,7 +88,7 @@ function onFormSubmit(e) {
 
 ## 🎉 Done! How It Works Real-Time
 
-- When a student fills out the Google Form, Google Apps Script automatically forwards the response to **CampusDesk AI**.
+- When a student fills out the Google Form, Google Apps Script automatically forwards the response to **CampusDesk AI** at `https://campusdesk-ai.onrender.com`.
 - **Gemini 2.5 Flash** parses the submission text.
 - Deterministic rules categorize and approve/gate the request.
 - Notion cards and Run Logs update live in your Notion workspace!
