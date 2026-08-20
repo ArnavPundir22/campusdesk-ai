@@ -9,7 +9,7 @@ Follow this guide to connect any Google Form to your live **CampusDesk AI** back
 
 ## 📋 Step 1: Create Your Google Form
 
-Create a new Google Form with these 5 fields (any order):
+Create a Google Form with these 5 fields (any order):
 
 1. **Student Full Name** *(Short answer)*
 2. **Student Roll / ID Number** *(Short answer)*
@@ -23,19 +23,26 @@ Create a new Google Form with these 5 fields (any order):
 
 1. Open your Google Form.
 2. Click the **`⋮` (Three dots)** icon in the top-right corner $\rightarrow$ Click **Script editor** (or **Apps Script**).
-3. Delete any default code in `Code.gs` and paste the following dynamic field-matching snippet:
+3. Delete any default code in `Code.gs` and paste the following snippet:
 
 ```javascript
 function setupTrigger() {
   var form = FormApp.getActiveForm();
-  ScriptApp.newTrigger('onFormSubmit')
+  
+  // Clean up any old existing triggers first
+  var triggers = ScriptApp.getUserTriggers(form);
+  for (var i = 0; i < triggers.length; i++) {
+    ScriptApp.deleteTrigger(triggers[i]);
+  }
+
+  ScriptApp.newTrigger('processFormSubmission')
       .forForm(form)
       .onFormSubmit()
       .create();
   Logger.log("✅ Trigger created successfully!");
 }
 
-function onFormSubmit(e) {
+function processFormSubmission(e) {
   var BACKEND_URL = "https://campusdesk-ai.onrender.com/api/v1/requests/submit";
 
   var itemResponses = e.response.getItemResponses();
@@ -82,16 +89,16 @@ function onFormSubmit(e) {
 
 ---
 
-## ⏰ Step 3: Enable Trigger
+## ⏰ Step 3: Run `setupTrigger` (Or Add Trigger via UI)
 
+### Method A (Code Setup):
 1. Select **`setupTrigger`** from the top dropdown menu $\rightarrow$ Click **▶ Run**.
 2. Click **Review permissions** $\rightarrow$ **Allow**.
 
----
-
-## 🎉 Done! How It Works Real-Time
-
-- When a student fills out the Google Form, Google Apps Script automatically forwards the response to **CampusDesk AI** at `https://campusdesk-ai.onrender.com`.
-- **Gemini 2.5 Flash** parses the submission text.
-- Deterministic rules categorize and approve/gate the request.
-- Notion cards and Run Logs update live in your Notion workspace!
+### Method B (Visual UI Setup):
+1. Click the **⏰ Triggers icon** on the left menu bar in Google Apps Script.
+2. Click **+ Add Trigger** (bottom right).
+3. Set **Choose which function to run**: `processFormSubmission`.
+4. Set **Select event source**: `From form`.
+5. Set **Select event type**: `On form submit`.
+6. Click **Save**.
