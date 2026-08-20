@@ -2,6 +2,9 @@
 
 Follow this guide to connect any Google Form to your live **CampusDesk AI** backend engine in 2 minutes.
 
+* 📝 **Live Active Google Form Submission**: **[https://forms.gle/xLJWQrskbwez9CkK8](https://forms.gle/xLJWQrskbwez9CkK8)**
+* ⚡ **Live Webhook Endpoint**: `https://campusdesk-ai.onrender.com/api/v1/requests/submit`
+
 ---
 
 ## 📋 Step 1: Create Your Google Form
