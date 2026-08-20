@@ -1,5 +1,6 @@
 import re
 import logging
+import asyncio
 from typing import Optional
 from src.config import settings
 from src.models import ParsedStudentRequest, RequestCategory, UrgencyLevel
@@ -24,15 +25,18 @@ Rules:
 
     @classmethod
     async def parse(cls, raw_text: str, student_name: str = "", student_id: str = "") -> ParsedStudentRequest:
-        """Parse raw text input using Gemini API or fallback heuristic parser."""
-        # Try Gemini API if key is valid
+        """Parse raw text input using Gemini API with fast 3s timeout or instant fallback heuristic parser."""
         if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY != "mock_key":
             try:
-                return await cls._parse_with_gemini(raw_text, student_name, student_id)
+                # Wrap Gemini call in 3.0s timeout to prevent API rate-limit delays
+                return await asyncio.wait_for(
+                    cls._parse_with_gemini(raw_text, student_name, student_id),
+                    timeout=3.0
+                )
             except Exception as e:
-                logger.warning(f"Gemini API parse failed: {e}. Falling back to heuristic parser.")
+                logger.warning(f"Gemini API parse bypassed ({e}). Using high-speed heuristic fallback parser.")
 
-        # Heuristic fallback parser
+        # Heuristic fallback parser (instant <1ms response)
         return cls._parse_heuristic(raw_text, student_name, student_id)
 
     @classmethod
@@ -41,76 +45,78 @@ Rules:
         from google.genai import types
 
         client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        prompt = f"Student Name: {student_name}\nStudent ID: {student_id}\nRaw Request:\n{raw_text}"
+        prompt = f"Student Name: {student_name}\nStudent ID: {student_id}\nRaw Request Text:\n{raw_text}"
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[cls.SYSTEM_PROMPT, prompt],
+            model=settings.AI_MODEL_NAME,
+            contents=prompt,
             config=types.GenerateContentConfig(
+                system_instruction=cls.SYSTEM_PROMPT,
                 response_mime_type="application/json",
                 response_schema=ParsedStudentRequest,
                 temperature=0.1
-            ),
+            )
         )
-
         return ParsedStudentRequest.model_validate_json(response.text)
 
     @classmethod
     def _parse_heuristic(cls, raw_text: str, student_name: str = "", student_id: str = "") -> ParsedStudentRequest:
-        """Deterministic regex and keyword parser for offline, mock, and test environments."""
+        """Deterministic regex and keyword parser for instant offline / rate-limited processing."""
         text_lower = raw_text.lower()
-
-        # Category detection
         category = RequestCategory.GENERAL
-        if any(w in text_lower for w in ["leave", "sick", "absent", "chutti", "casual leave", "wedding"]):
-            category = RequestCategory.LEAVE
-        elif any(w in text_lower for w in ["reimbursement", "budget", "rs", "rupees", "inr", "cost", "receipt", "purchase", "amount", "spent", "₹"]):
+        requested_amount_inr = 0.0
+        duration_days = 1
+        urgency_level = UrgencyLevel.MEDIUM
+
+        # 1. Extract Financial Amounts
+        amount_matches = re.findall(r'(?:rs\.?|inr|₹|\brupees\b)\s*([\d,]+(?:\.\d+)?)|([\d,]+)\s*(?:rs|inr|rupees)', text_lower)
+        if amount_matches:
+            for match in amount_matches:
+                val_str = (match[0] or match[1]).replace(",", "")
+                try:
+                    requested_amount_inr = float(val_str)
+                    category = RequestCategory.BUDGET
+                    break
+                except ValueError:
+                    pass
+
+        # 2. Extract Leave Durations
+        day_matches = re.findall(r'(\d+)\s*(?:day|days)\b', text_lower)
+        if day_matches:
+            try:
+                duration_days = int(day_matches[0])
+                if category == RequestCategory.GENERAL:
+                    category = RequestCategory.LEAVE
+            except ValueError:
+                pass
+        elif any(k in text_lower for k in ["leave", "absent", "fever", "sick", "vacation", "permission to absent"]):
+            if category == RequestCategory.GENERAL:
+                category = RequestCategory.LEAVE
+
+        # 3. Detect Specific Categories (Priority: Reimbursement/Budget > Hall > Lab Borrowing)
+        if any(k in text_lower for k in ["reimbursement", "budget", "grant", "expense", "bill", "purchasing"]):
             category = RequestCategory.BUDGET
-        elif any(w in text_lower for w in ["equipment", "lab", "sensor", "arduino", "microscope", "oscilloscope", "component"]):
-            category = RequestCategory.LAB_EQUIPMENT
-        elif any(w in text_lower for w in ["auditorium", "hall", "event", "venue", "seminar"]):
+        elif any(k in text_lower for k in ["hall", "auditorium", "seminar", "venue", "booking", "stage", "sound"]):
             category = RequestCategory.EVENT_HALL
+        elif any(k in text_lower for k in ["oscilloscope", "component", "kit", "hpc", "borrow", "access hpc"]):
+            category = RequestCategory.LAB_EQUIPMENT
 
-        # Amount extraction (e.g. Rs 1,450, 1450 rupees, ₹1450, Rs. 500)
-        amount = 0.0
-        amount_match = re.search(r'(?:rs\.?|rupees|inr|₹)\s*([\d,]+(?:\.\d+)?)|([\d,]+(?:\.\d+)?)\s*(?:rs\.?|rupees|inr|₹)', text_lower)
-        if amount_match:
-            val_str = amount_match.group(1) or amount_match.group(2)
-            try:
-                amount = float(val_str.replace(",", ""))
-            except ValueError:
-                amount = 0.0
+        # 4. Detect Urgency
+        if any(k in text_lower for k in ["urgent", "emergency", "immediate", "today", "asap"]):
+            urgency_level = UrgencyLevel.HIGH
 
-        # Duration days extraction (e.g. 2 days, 3-day, one day, single day)
-        days = 1
-        days_match = re.search(r'(\d+)\s*(?:day|days)', text_lower)
-        if days_match:
-            try:
-                days = int(days_match.group(1))
-            except ValueError:
-                days = 1
-        elif "multi-day" in text_lower or "two days" in text_lower or "three days" in text_lower:
-            days = 2
-
-        # Urgency detection
-        urgency = UrgencyLevel.MEDIUM
-        if any(w in text_lower for w in ["urgent", "emergency", "immediately", "today", "critical"]):
-            urgency = UrgencyLevel.HIGH
-
-        # Title & Summary construction
-        s_name = student_name or "Student"
-        title = f"{category.value.replace('_', ' ').title()} Request from {s_name}"
-        summary = f"{s_name} submitted a {category.value.lower()} request. Details extracted: '{raw_text[:120]}...'."
+        title = f"{category.value.title().replace('_', ' ')} Request for {student_name or 'Student'}"
+        summary = f"Student {student_name or 'Student'} ({student_id or 'ID N/A'}) submitted a {category.value} request. Raw text: '{raw_text[:150]}...'"
 
         return ParsedStudentRequest(
-            student_name=student_name or "Student",
+            student_name=student_name,
             student_id=student_id,
             category=category,
             title=title,
             summary=summary,
-            urgency_level=urgency,
-            requested_amount_inr=amount,
-            duration_days=days,
-            key_entities=[category.value],
-            reasoning_for_category=f"Heuristic parser assigned {category.value} based on text patterns."
+            urgency_level=urgency_level,
+            requested_amount_inr=requested_amount_inr,
+            duration_days=duration_days,
+            key_entities=[],
+            reasoning_for_category="Parsed via heuristic offline parser."
         )

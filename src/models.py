@@ -37,6 +37,16 @@ class IncomingSubmissionPayload(BaseModel):
     department: Optional[str] = Field(default="", description="Department or school name")
 
 
+class IngestionResponse(BaseModel):
+    status: str = Field(default="success")
+    duplicate_detected: bool = Field(default=False)
+    request_id: str = Field(description="Unique request ID REQ-YYYYMMDD-XXXX")
+    workflow_status: WorkflowStatus
+    message: str
+    notion_url: Optional[str] = None
+
+
+
 class ParsedStudentRequest(BaseModel):
     student_name: str = Field(description="Full name of requesting student")
     student_id: str = Field(default="", description="Roll number or student ID")

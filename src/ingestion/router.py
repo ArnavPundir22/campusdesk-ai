@@ -1,11 +1,13 @@
 import time
+import logging
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Depends, Header, BackgroundTasks
+from fastapi import APIRouter, HTTPException, status, BackgroundTasks
 from src.models import (
     IncomingSubmissionPayload,
-    StudentRequestDomainModel,
-    WorkflowStatus
+    IngestionResponse,
+    WorkflowStatus,
+    StudentRequestDomainModel
 )
 from src.ingestion.idempotency import idempotency_cache
 from src.core.ai_parser import RequestParserAgent
@@ -14,102 +16,111 @@ from src.notion.client import notion_client
 from src.actions.email_service import EmailSender
 from src.logging.run_logger import RunLogger
 
-router = APIRouter(prefix="/api/v1/requests", tags=["Student Requests Ingestion"])
+logger = logging.getLogger("campusdesk.ingestion")
+router = APIRouter(prefix="/api/v1/requests", tags=["Ingestion & Workflow"])
 
 
-@router.post("/submit", status_code=201)
+@router.post("/submit", response_model=IngestionResponse, status_code=status.HTTP_201_CREATED)
 async def submit_student_request(
     payload: IncomingSubmissionPayload,
-    background_tasks: BackgroundTasks,
-    x_idempotency_key: str = Header(default="")
+    background_tasks: BackgroundTasks
 ):
-    """Ingest incoming student request (Form JSON or Webhook), evaluate rules, sync to Notion, and dispatch actions."""
+    """
+    Ingest a student request payload, deduplicate via SHA-256 idempotency hash,
+    parse via Gemini 2.5 Flash, evaluate deterministic rules R1-R6, update Notion Control Center,
+    and trigger automated real-world actions or human approval gates.
+    """
     start_time = time.time()
+    logger.info(f"Incoming Submission: Student='{payload.student_name}' | Email='{payload.contact_email}'")
 
-    # 1. Compute Idempotency Hash & Check Cache
+    # 1. Idempotency Check & Hash Calculation
     req_hash = idempotency_cache.generate_hash(
         student_name=payload.student_name,
         raw_text=payload.raw_text,
         student_id=payload.student_id
     )
 
-    cached_record = idempotency_cache.get(req_hash)
-    if cached_record:
-        return {
-            "status": "success",
-            "duplicate_detected": True,
-            "request_id": cached_record.request_id,
-            "workflow_status": cached_record.status.value,
-            "message": "Duplicate submission detected within 24h. Returned cached request state.",
-            "notion_url": cached_record.notion_url
-        }
+    existing_record = idempotency_cache.get(req_hash)
+    if existing_record:
+        logger.warning(f"Duplicate submission detected! ID={existing_record.request_id} | Hash={req_hash}")
+        return IngestionResponse(
+            status="success",
+            duplicate_detected=True,
+            request_id=existing_record.request_id,
+            workflow_status=existing_record.status,
+            message="Duplicate request received. Already registered in CampusDesk engine.",
+            notion_url=existing_record.notion_url
+        )
 
-    # 2. Generate Unique Request ID
-    req_id = f"REQ-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
+    # Generate Unique Request ID
+    date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+    short_suffix = uuid.uuid4().hex[:4].upper()
+    request_id = f"REQ-{date_str}-{short_suffix}"
 
-    # 3. Step A: Structured AI Parsing
-    parsed_req = await RequestParserAgent.parse(
-        raw_text=payload.raw_text,
-        student_name=payload.student_name,
-        student_id=payload.student_id
-    )
+    # 2. AI Structuring (Gemini 2.5 Flash / Heuristic Fallback)
+    parsed_ai = await RequestParserAgent.parse(payload.raw_text, payload.student_name, payload.student_id)
+    logger.info(f"Parsed Request: Cat={parsed_ai.category.value} | Amt=₹{parsed_ai.requested_amount_inr} | Days={parsed_ai.duration_days} | Urgency={parsed_ai.urgency_level.value}")
 
-    # 4. Step B: Deterministic Business Rule Evaluation
-    decision = RulesEngine.evaluate(parsed_req)
+    # 3. Deterministic Rules Engine Evaluation (Rules R1 - R6)
+    decision = RulesEngine.evaluate(parsed_ai)
+    logger.info(f"Rules Engine Decision: Status={decision.status.value} | Rule={decision.rule_id} | Reason='{decision.reason}'")
 
-    # 5. Build Domain Model
+    # 4. Construct Domain Model
     domain_model = StudentRequestDomainModel(
-        request_id=req_id,
+        request_id=request_id,
         idempotency_hash=req_hash,
-        student_name=parsed_req.student_name,
-        student_id=parsed_req.student_id,
+        student_name=payload.student_name or "Student",
+        student_id=payload.student_id or "N/A",
         contact_email=payload.contact_email,
-        category=parsed_req.category,
-        title=parsed_req.title,
-        summary=parsed_req.summary,
+        category=parsed_ai.category,
+        title=parsed_ai.title,
+        summary=parsed_ai.summary,
         raw_text=payload.raw_text,
-        amount_inr=parsed_req.requested_amount_inr,
-        duration_days=parsed_req.duration_days,
-        urgency=parsed_req.urgency_level,
+        amount_inr=parsed_ai.requested_amount_inr,
+        duration_days=parsed_ai.duration_days,
+        urgency=parsed_ai.urgency_level,
         status=decision.status,
         decision_reason=decision.reason
     )
 
-    # 6. Step C: Create Notion Request Page
+    # 5. Notion Control Center Database Update
     page_id, page_url = await notion_client.create_request_page(domain_model)
     domain_model.notion_page_id = page_id
     domain_model.notion_url = page_url
 
-    # Store in Idempotency Cache
+    # Store in idempotency cache
     idempotency_cache.store(req_hash, domain_model)
 
-    # 7. Action Branching
+    # 6. Process Workflow Action & Audit Logging
     if decision.status == WorkflowStatus.AUTO_APPROVED:
-        # Execute Real Action immediately for auto-approved requests
-        await EmailSender.send_decision_email(domain_model)
-        domain_model.action_executed = True
-
-        action_log = f"Auto-Approved (Rule: {decision.rule_id}) -> PDF Certificate generated & emailed to {payload.contact_email}"
-        msg = f"Request auto-approved ({decision.reason}). Approval PDF sent to student email."
+        msg = f"Request auto-approved by Rule {decision.rule_id}. PDF Certificate generated & emailed."
+        action_desc = f"Auto-Approved (Rule: {decision.rule_id}) -> Dispatched Email & PDF"
+        
+        # Dispatch email asynchronously in background task to avoid HTTP timeout
+        background_tasks.add_task(
+            EmailSender.send_decision_email,
+            domain_model,
+            approver_notes="Auto-Approved by CampusDesk Rules Engine"
+        )
     else:
-        # Paused at Notion Human Approval Gate
-        action_log = f"Workflow Paused at Notion Approval Gate (Rule: {decision.rule_id})"
-        msg = f"Request ingested and paused at Notion Human Approval Gate ({decision.reason})."
+        msg = f"Request ingested and paused at Notion Human Approval Gate (Rule {decision.rule_id}: {decision.reason})."
+        action_desc = f"Workflow Paused at Notion Approval Gate (Rule: {decision.rule_id})"
 
-    # 8. Programmatic Notion Run Logging
-    await RunLogger.log_run(
-        request_id=req_id,
+    # Log run asynchronously in background task
+    background_tasks.add_task(
+        RunLogger.log_run,
+        request_id=request_id,
         trigger_event="WEBHOOK_INGESTION",
-        action_executed=action_log,
+        action_executed=action_desc,
         start_time_ms=start_time,
         success=True
     )
 
-    return {
-        "status": "success",
-        "duplicate_detected": False,
-        "request_id": req_id,
-        "workflow_status": decision.status.value,
-        "message": msg,
-        "notion_url": page_url
-    }
+    return IngestionResponse(
+        status="success",
+        duplicate_detected=False,
+        request_id=request_id,
+        workflow_status=decision.status,
+        message=msg,
+        notion_url=page_url
+    )

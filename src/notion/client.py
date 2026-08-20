@@ -39,7 +39,8 @@ class NotionClient:
                 "url": page_url,
                 "request_id": request.request_id,
                 "status": "Pending Approval" if request.status.value == "PENDING_APPROVAL" else "Auto-Approved",
-                "request_domain": request
+                "request_domain": request,
+                "action_executed": request.action_executed
             }
             logger.info(f"[MOCK NOTION] Created page {page_id} for request {request.request_id}")
             return page_id, page_url
@@ -84,6 +85,30 @@ class NotionClient:
             data = response.json()
             return data.get("results", [])
 
+    async def update_page_status(self, page_id: str, new_status: str) -> bool:
+        """Update status property of a page in Notion database."""
+        if self.mock_mode:
+            if page_id in self._mock_pages:
+                self._mock_pages[page_id]["status"] = new_status
+                self._mock_pages[page_id]["action_executed"] = True
+            return True
+
+        url = f"https://api.notion.com/v1/pages/{page_id}"
+        payload = {
+            "properties": {
+                "Status": {"select": {"name": new_status}}
+            }
+        }
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.patch(url, headers=self.headers, json=payload)
+                res.raise_for_status()
+                logger.info(f"Updated Notion Page {page_id} Status -> '{new_status}'")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to update Notion page status for {page_id}: {e}")
+            return False
+
     async def append_run_log(self, run_id: str, request_id: str, trigger_event: str, action_executed: str, execution_ms: int, success: bool = True) -> str:
         """Append timestamped row to System Run Log database."""
         if self.mock_mode:
@@ -108,7 +133,6 @@ class NotionClient:
             data = response.json()
             return data.get("id", "")
 
-    # Test Helper Method to simulate human approval in Notion
     def simulate_human_approval(self, page_id: str, decision: str = "Approved"):
         """Simulate a human clicking 'Approved' or 'Rejected' inside Notion UI."""
         if page_id in self._mock_pages:
