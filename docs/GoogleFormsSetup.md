@@ -1,35 +1,23 @@
 # Google Forms Integration Guide — CampusDesk AI
 
-Follow this guide to connect any Google Form to your live **CampusDesk AI** backend engine in 2 minutes.
+Follow this guide to connect your Google Form to your live **CampusDesk AI** backend engine on Render in 10 seconds.
 
 * 📝 **Live Active Google Form Submission**: **[https://forms.gle/xLJWQrskbwez9CkK8](https://forms.gle/xLJWQrskbwez9CkK8)**
 * ⚡ **Live Webhook Endpoint**: `https://campusdesk-ai.onrender.com/api/v1/requests/submit`
 
 ---
 
-## 📋 Step 1: Create Your Google Form
+## ⚡ 1-Click Code Setup (Works Standalone & Bound)
 
-Create a Google Form with these 5 fields (any order):
-
-1. **Student Full Name** *(Short answer)*
-2. **Student Roll / ID Number** *(Short answer)*
-3. **Contact Email Address** *(Short answer)*
-4. **Department** *(Dropdown or Short answer)*
-5. **Request Details** *(Paragraph — unstructured request, leave reasons, budget reimbursement specs, or lab borrowing)*
-
----
-
-## ⚡ Step 2: Add Google Apps Script Webhook
-
-1. Open your Google Form.
-2. Click the **`⋮` (Three dots)** icon in the top-right corner $\rightarrow$ Click **Script editor** (or **Apps Script**).
-3. Delete any default code in `Code.gs` and paste the following snippet:
+Replace all text in `Code.gs` with the snippet below (pre-configured with your Form ID `1g31b_zlhdiU70s6VHGnuevngHWjF-9ZazlbGibDmbWg`):
 
 ```javascript
 function setupTrigger() {
-  var form = FormApp.getActiveForm();
+  // Your Google Form ID
+  var formId = "1g31b_zlhdiU70s6VHGnuevngHWjF-9ZazlbGibDmbWg";
+  var form = FormApp.openById(formId);
   
-  // Clean up any old existing triggers first
+  // Clean up any old triggers
   var triggers = ScriptApp.getUserTriggers(form);
   for (var i = 0; i < triggers.length; i++) {
     ScriptApp.deleteTrigger(triggers[i]);
@@ -39,7 +27,7 @@ function setupTrigger() {
       .forForm(form)
       .onFormSubmit()
       .create();
-  Logger.log("✅ Trigger created successfully!");
+  Logger.log("✅ Trigger created successfully for Google Form!");
 }
 
 function processFormSubmission(e) {
@@ -89,16 +77,8 @@ function processFormSubmission(e) {
 
 ---
 
-## ⏰ Step 3: Run `setupTrigger` (Or Add Trigger via UI)
-
-### Method A (Code Setup):
-1. Select **`setupTrigger`** from the top dropdown menu $\rightarrow$ Click **▶ Run**.
-2. Click **Review permissions** $\rightarrow$ **Allow**.
-
-### Method B (Visual UI Setup):
-1. Click the **⏰ Triggers icon** on the left menu bar in Google Apps Script.
-2. Click **+ Add Trigger** (bottom right).
-3. Set **Choose which function to run**: `processFormSubmission`.
-4. Set **Select event source**: `From form`.
-5. Set **Select event type**: `On form submit`.
-6. Click **Save**.
+## 🚀 How to Run:
+1. Copy-paste the code above into `Code.gs` and save (`Ctrl + S`).
+2. Select **`setupTrigger`** from the top dropdown menu $\rightarrow$ Click **▶ Run**.
+3. Click **Review permissions** $\rightarrow$ **Allow**.
+4. You're done! Any submission on the Google Form will now route directly to **Render**!
