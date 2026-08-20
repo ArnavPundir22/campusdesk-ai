@@ -16,6 +16,7 @@ class NotionClient:
         self.api_key = settings.NOTION_API_KEY
         self.requests_db_id = settings.NOTION_REQUESTS_DB_ID
         self.run_log_db_id = settings.NOTION_RUN_LOG_DB_ID
+        self.rulebook_db_id = settings.NOTION_RULEBOOK_DB_ID
         self.mock_mode = settings.MOCK_NOTION or not self.api_key or self.api_key == "secret_mock_token"
 
         self.headers = {
@@ -139,5 +140,43 @@ class NotionClient:
             self._mock_pages[page_id]["status"] = decision
             logger.info(f"[SIMULATION] Human updated Notion Page {page_id} Status -> '{decision}'")
 
+    async def fetch_dynamic_rulebook(self) -> Dict[str, Dict[str, Any]]:
+        """Fetch live rule configurations from Notion Rulebook Database with 60s TTL cache."""
+        if self.mock_mode or not self.rulebook_db_id:
+            return {}
+
+        now = time.time()
+        if hasattr(self, "_rulebook_cache") and hasattr(self, "_rulebook_cache_time"):
+            if now - self._rulebook_cache_time < 60.0:
+                return self._rulebook_cache
+
+        url = f"https://api.notion.com/v1/databases/{self.rulebook_db_id}/query"
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                res = await client.post(url, headers=self.headers, json={})
+                if res.status_code == 200:
+                    rules_map = {}
+                    for row in res.json().get("results", []):
+                        props = row.get("properties", {})
+                        r_id_list = props.get("Rule ID", {}).get("title", [])
+                        if not r_id_list:
+                            continue
+                        r_id = r_id_list[0].get("text", {}).get("content", "")
+                        auto_approve = props.get("Auto Approve Enabled", {}).get("checkbox", False)
+                        max_budget = props.get("Max Auto Budget (INR)", {}).get("number") or 0.0
+                        max_leave = props.get("Max Auto Leave Days", {}).get("number") or 0
+                        rules_map[r_id] = {
+                            "auto_approve": auto_approve,
+                            "max_budget": max_budget,
+                            "max_leave": max_leave
+                        }
+                    self._rulebook_cache = rules_map
+                    self._rulebook_cache_time = now
+                    return rules_map
+        except Exception as e:
+            logger.warning(f"Could not fetch dynamic rulebook from Notion: {e}")
+        return getattr(self, "_rulebook_cache", {})
+
 
 notion_client = NotionClient()
+

@@ -61,8 +61,9 @@ async def submit_student_request(
     parsed_ai = await RequestParserAgent.parse(payload.raw_text, payload.student_name, payload.student_id)
     logger.info(f"Parsed Request: Cat={parsed_ai.category.value} | Amt=₹{parsed_ai.requested_amount_inr} | Days={parsed_ai.duration_days} | Urgency={parsed_ai.urgency_level.value}")
 
-    # 3. Deterministic Rules Engine Evaluation (Rules R1 - R6)
-    decision = RulesEngine.evaluate(parsed_ai)
+    # 3. Dynamic Notion Rulebook Evaluation (Rules R1 - R6)
+    dynamic_rulebook = await notion_client.fetch_dynamic_rulebook()
+    decision = RulesEngine.evaluate(parsed_ai, dynamic_rulebook=dynamic_rulebook)
     logger.info(f"Rules Engine Decision: Status={decision.status.value} | Rule={decision.rule_id} | Reason='{decision.reason}'")
 
     # 4. Construct Domain Model

@@ -22,11 +22,13 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = Field(default="")
     OPENAI_API_KEY: str = Field(default="")
     DEFAULT_AI_PROVIDER: str = Field(default="gemini")
+    AI_MODEL_NAME: str = Field(default="gemini-2.5-flash")
 
     # Notion Integration
     NOTION_API_KEY: str = Field(default="")
     NOTION_REQUESTS_DB_ID: str = Field(default="")
     NOTION_RUN_LOG_DB_ID: str = Field(default="")
+    NOTION_RULEBOOK_DB_ID: str = Field(default="")
     MOCK_NOTION: bool = Field(default=True)
 
     # Email Dispatch

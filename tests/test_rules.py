@@ -13,7 +13,7 @@ def test_rule_budget_under_threshold_auto_approved():
     decision = RulesEngine.evaluate(parsed)
     assert decision.status == WorkflowStatus.AUTO_APPROVED
     assert decision.requires_human_approval is False
-    assert decision.rule_id == "R1_BUDGET_AUTO"
+    assert decision.rule_id == "R2_BUDGET_THRESHOLD"
 
 
 def test_rule_budget_over_threshold_requires_approval():
@@ -27,7 +27,7 @@ def test_rule_budget_over_threshold_requires_approval():
     decision = RulesEngine.evaluate(parsed)
     assert decision.status == WorkflowStatus.PENDING_APPROVAL
     assert decision.requires_human_approval is True
-    assert decision.rule_id == "R2_BUDGET_GATE"
+    assert decision.rule_id == "R2_BUDGET_THRESHOLD"
 
 
 def test_rule_leave_single_day_auto_approved():
@@ -41,7 +41,7 @@ def test_rule_leave_single_day_auto_approved():
     decision = RulesEngine.evaluate(parsed)
     assert decision.status == WorkflowStatus.AUTO_APPROVED
     assert decision.requires_human_approval is False
-    assert decision.rule_id == "R3_LEAVE_AUTO"
+    assert decision.rule_id == "R3_LEAVE_THRESHOLD"
 
 
 def test_rule_leave_multiday_requires_approval():
@@ -55,7 +55,7 @@ def test_rule_leave_multiday_requires_approval():
     decision = RulesEngine.evaluate(parsed)
     assert decision.status == WorkflowStatus.PENDING_APPROVAL
     assert decision.requires_human_approval is True
-    assert decision.rule_id == "R4_LEAVE_GATE"
+    assert decision.rule_id == "R3_LEAVE_THRESHOLD"
 
 
 def test_rule_lab_equipment_always_requires_approval():
@@ -69,4 +69,28 @@ def test_rule_lab_equipment_always_requires_approval():
     decision = RulesEngine.evaluate(parsed)
     assert decision.status == WorkflowStatus.PENDING_APPROVAL
     assert decision.requires_human_approval is True
-    assert decision.rule_id == "R5_RESOURCE_GATE"
+    assert decision.rule_id == "R4_RESOURCE_GATE"
+
+
+def test_dynamic_notion_rulebook_override():
+    """Test that dynamic Notion Rulebook configuration overrides default limits."""
+    parsed = ParsedStudentRequest(
+        student_name="Aarav Sharma",
+        category=RequestCategory.BUDGET,
+        title="Project Expense",
+        summary="Reimbursement of Rs 2500",
+        requested_amount_inr=2500.0
+    )
+    
+    # Dynamic Notion Rulebook setting Max Auto Budget to 3000
+    dynamic_rulebook = {
+        "R2_BUDGET_THRESHOLD": {
+            "auto_approve": True,
+            "max_budget": 3000.0,
+            "max_leave": 0
+        }
+    }
+    
+    decision = RulesEngine.evaluate(parsed, dynamic_rulebook=dynamic_rulebook)
+    assert decision.status == WorkflowStatus.AUTO_APPROVED
+    assert decision.requires_human_approval is False
