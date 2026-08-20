@@ -44,7 +44,7 @@ Rules:
         prompt = f"Student Name: {student_name}\nStudent ID: {student_id}\nRaw Request:\n{raw_text}"
 
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-2.5-flash",
             contents=[cls.SYSTEM_PROMPT, prompt],
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",

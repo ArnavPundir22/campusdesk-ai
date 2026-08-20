@@ -75,7 +75,7 @@ class NotionFormatter:
                     "icon": {"type": "emoji", "emoji": "💡"},
                     "color": "gray_background",
                     "rich_text": [
-                        {"type": "text", "text": {"content": "EXECUTIVE SUMMARY\n", "annotations": {"bold": True}}},
+                        {"type": "text", "text": {"content": "EXECUTIVE SUMMARY\n"}, "annotations": {"bold": True}},
                         {"type": "text", "text": {"content": request.summary}}
                     ]
                 }
@@ -85,7 +85,7 @@ class NotionFormatter:
                 "object": "block",
                 "type": "toggle",
                 "toggle": {
-                    "rich_text": [{"type": "text", "text": {"content": "⚙️ System Logic & Rule Evaluation", "annotations": {"bold": True}}}],
+                    "rich_text": [{"type": "text", "text": {"content": "⚙️ System Logic & Rule Evaluation"}, "annotations": {"bold": True}}],
                     "children": [
                         {
                             "object": "block",
@@ -116,7 +116,7 @@ class NotionFormatter:
                     "icon": {"type": "emoji", "emoji": "🙋"},
                     "color": "yellow_background",
                     "rich_text": [
-                        {"type": "text", "text": {"content": "ACTION REQUIRED BY APPROVER\n", "annotations": {"bold": True}}},
+                        {"type": "text", "text": {"content": "ACTION REQUIRED BY APPROVER\n"}, "annotations": {"bold": True}},
                         {"type": "text", "text": {"content": "Please review the request details and change the 'Status' property above to 'Approved' or 'Rejected' to execute downstream real-world actions."}}
                     ]
                 }
@@ -128,7 +128,7 @@ class NotionFormatter:
             "type": "quote",
             "quote": {
                 "rich_text": [
-                    {"type": "text", "text": {"content": "Original Student Submission:\n", "annotations": {"italic": True}}},
+                    {"type": "text", "text": {"content": "Original Student Submission:\n"}, "annotations": {"italic": True}},
                     {"type": "text", "text": {"content": request.raw_text}}
                 ]
             }
