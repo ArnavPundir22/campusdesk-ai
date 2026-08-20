@@ -19,7 +19,7 @@ class RulesEngine:
             auto_enabled = rule_cfg.get("auto_approve", True)
             max_auto_budget = rule_cfg.get("max_budget", settings.AUTO_APPROVE_BUDGET_MAX_INR)
 
-            if auto_enabled and amount <= max_auto_budget:
+            if auto_enabled and 0.0 < amount <= max_auto_budget:
                 return WorkflowDecision(
                     status=WorkflowStatus.AUTO_APPROVED,
                     requires_human_approval=False,
@@ -27,10 +27,11 @@ class RulesEngine:
                     rule_id="R2_BUDGET_THRESHOLD"
                 )
             else:
+                reason_detail = f"exceeds limit of ₹{max_auto_budget:,.2f}" if amount > max_auto_budget else "amount requires manual review"
                 return WorkflowDecision(
                     status=WorkflowStatus.PENDING_APPROVAL,
                     requires_human_approval=True,
-                    reason=f"Rule R2_BUDGET_THRESHOLD: Budget request (₹{amount:,.2f}) exceeds limit (₹{max_auto_budget:,.2f}); routed for HOD approval in Notion.",
+                    reason=f"Rule R2_BUDGET_THRESHOLD: Budget request (₹{amount:,.2f}) {reason_detail}; routed for HOD approval in Notion.",
                     rule_id="R2_BUDGET_THRESHOLD"
                 )
 

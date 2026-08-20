@@ -69,14 +69,31 @@ Rules:
         urgency_level = UrgencyLevel.MEDIUM
 
         # 1. Extract Financial Amounts
-        amount_matches = re.findall(r'(?:rs\.?|inr|₹|\brupees\b)\s*([\d,]+(?:\.\d+)?)|([\d,]+)\s*(?:rs|inr|rupees)', text_lower)
+        amount_matches = re.findall(
+            r'(?:rs\.?|inr|₹|\brupees\b|\bgrant\b|\bamount\b|\bbudget\b|\bcost\b|\bfee\b|\bpay\b)\s*([\d,]+(?:\.\d+)?)|([\d,]{4,})\s*(?:rs|inr|rupees)?',
+            text_lower
+        )
         if amount_matches:
             for match in amount_matches:
-                val_str = (match[0] or match[1]).replace(",", "")
+                val_str = (match[0] or match[1]).replace(",", "").strip()
+                if not val_str:
+                    continue
                 try:
-                    requested_amount_inr = float(val_str)
+                    val_float = float(val_str)
+                    if val_float > 0:
+                        requested_amount_inr = val_float
+                        category = RequestCategory.BUDGET
+                        break
+                except ValueError:
+                    pass
+
+        # Check for standalone large numbers (e.g. 500000) if budget keywords exist
+        if requested_amount_inr == 0.0 and any(k in text_lower for k in ["reimbursement", "budget", "grant", "expense", "bill", "purchasing", "saas", "project", "fund"]):
+            num_matches = re.findall(r'\b(\d{3,9})\b', text_lower)
+            if num_matches:
+                try:
+                    requested_amount_inr = float(num_matches[0])
                     category = RequestCategory.BUDGET
-                    break
                 except ValueError:
                     pass
 
